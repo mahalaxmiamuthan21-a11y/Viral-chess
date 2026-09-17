@@ -3,51 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ViralChess - Play Quirky Chess Bots</title>
-    <!-- SEO Meta Tags so Google understands your site -->
-    <meta name="description" content="Play unique, viral chess variants and custom AI bots on ViralChess. Challenge the Drawfish, Chaos Chess, and more!">
+    <title>ViralChess - Play Smart Chess Bots</title>
+    <meta name="description" content="Play custom Stockfish AI bots on ViralChess. Challenge our unique engine configurations!">
     
-    <!-- Include Chessboard CSS and jQuery -->
+    <!-- Core Styles and Chess Assets -->
     <link rel="stylesheet" href="https://cloudflare.com">
     <script src="https://jquery.com"></script>
     <script src="https://cloudflare.com"></script>
     <script src="https://cloudflare.com"></script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #222; color: #fff; }
-        #myBoard { width: 400px; max-width: 90vw; margin: 20px auto; }
-        .controls { margin-top: 20px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; }
+        body { font-family: Arial, sans-serif; text-align: center; background: #1a1a1a; color: #fff; margin: 0; padding: 20px; }
+        h1 { color: #4CAF50; margin-bottom: 5px; }
+        #myBoard { width: 400px; max-width: 90vw; margin: 20px auto; border: 4px solid #333; border-radius: 4px; }
+        .status-box { background: #2a2a2a; padding: 10px; max-width: 400px; margin: 10px auto; border-radius: 5px; font-size: 14px; }
+        button { padding: 12px 24px; font-size: 16px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; font-weight: bold; margin-top: 10px; }
+        button:hover { background: #45a049; }
     </style>
 </head>
 <body>
 
-    <h1>Welcome to ViralChess.com</h1>
-    <p>Can you beat our custom bots?</p>
+    <h1>ViralChess.com</h1>
+    <p>Playing against: <strong>Stockfish Bot (Level 1)</strong></p>
     
-    <!-- The Chess Board Grid -->
     <div id="myBoard"></div>
+    
+    <div class="status-box" id="gameStatus">Your turn! Move a white piece to start.</div>
 
-    <div class="controls">
-        <button onclick="resetGame()">Restart Game</button>
-    </div>
+    <button onclick="resetGame()">Restart Game</button>
 
     <script>
-        // Basic chess integration initialization
         var board = null;
         var game = new Chess();
+        var statusEl = $('#gameStatus');
+
+        // Locate and load the Stockfish Engine via Web Worker CDN
+        var stockfish = new Worker('https://cloudflare.com');
+
+        // Listen for Stockfish to reply with its calculated move
+        stockfish.onmessage = function(event) {
+            var line = event.data;
+            if (line.indexOf('bestmove') > -1) {
+                var match = line.match(/^bestmove\s([a-h][1-8])([a-h][1-8])([qrbn])?/);
+                if (match) {
+                    game.move({
+                        from: match[1],
+                        to: match[2],
+                        promotion: match[3] || 'q'
+                    });
+                    board.position(game.fen());
+                    updateStatus();
+                }
+            }
+        };
 
         function onDragStart (source, piece, position, orientation) {
             if (game.game_over()) return false;
-            if (piece.search(/^b/) !== -1) return false; // Player is always White for now
+            // Prevent player from dragging black pieces
+            if (piece.search(/^b/) !== -1) return false;
         }
 
-        function makeRandomMove () {
-            var possibleMoves = game.moves();
-            if (possibleMoves.length === 0) return; // Game over
-
-            var randomIdx = Math.floor(Math.random() * possibleMoves.length);
-            game.move(possibleMoves[randomIdx]);
-            board.position(game.fen());
+        function askStockfishToMove() {
+            statusEl.html('Bot is thinking...');
+            // Tell Stockfish the current game board setup
+            stockfish.postMessage('position fen ' + game.fen());
+            // Tell Stockfish to think quickly (Depth 5 keeps it responsive on mobile phones)
+            stockfish.postMessage('go depth 5');
         }
 
         function onDrop (source, target) {
@@ -59,12 +79,33 @@
 
             if (move === null) return 'snapback';
 
-            // Replicate the viral twist: The bot instantly responds with a random/custom calculation
-            window.setTimeout(makeRandomMove, 250);
+            updateStatus();
+
+            // If the game isn't over, trigger Stockfish AI after a brief pause
+            if (!game.game_over()) {
+                window.setTimeout(askStockfishToMove, 250);
+            }
         }
 
         function onSnapEnd () {
             board.position(game.fen());
+        }
+
+        function updateStatus() {
+            var status = '';
+            var moveColor = (game.turn() === 'b') ? 'Black (Bot)' : 'White (You)';
+
+            if (game.in_checkmate()) {
+                status = 'Game over, ' + moveColor + ' is in checkmate.';
+            } else if (game.in_draw()) {
+                status = 'Game over, drawn position.';
+            } else {
+                status = moveColor + ' to move.';
+                if (game.in_check()) {
+                    status += ' (In Check!)';
+                }
+            }
+            statusEl.html(status);
         }
 
         var config = {
@@ -79,6 +120,7 @@
         function resetGame() {
             game.reset();
             board.start();
+            statusEl.html('Game restarted. Your turn!');
         }
     </script>
 </body>
