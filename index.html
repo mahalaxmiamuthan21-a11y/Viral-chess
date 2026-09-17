@@ -3,45 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ViralChess - Play Smart Chess Bots</title>
-    <meta name="description" content="Play custom Stockfish AI bots on ViralChess. Challenge our unique engine configurations!">
+    <title>ViralChess - Play Custom Chess AI Bots Online</title>
     
-    <!-- Core Styles and Chess Assets -->
+    <!-- Google SEO Search Engine Meta Tags -->
+    <meta name="description" content="Play against unique, custom Stockfish AI bots on ViralChess.com. Challenge our tailored chess engine right from your browser for free!">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://viralchess.com">
+
+    <!-- CSS Styling for a Premium Dark Theme Layout -->
     <link rel="stylesheet" href="https://cloudflare.com">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            background: #121212; 
+            color: #ffffff; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        h1 { 
+            color: #4CAF50; 
+            margin-bottom: 5px; 
+            font-size: 2rem;
+            letter-spacing: 1px;
+        }
+        p {
+            color: #b3b3b3;
+            margin-top: 0;
+            font-size: 1rem;
+        }
+        #myBoard { 
+            width: 400px; 
+            max-width: 90vw; 
+            margin: 20px auto; 
+            border: 4px solid #2d2d2d; 
+            border-radius: 6px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+        .status-box { 
+            background: #1e1e1e; 
+            padding: 12px; 
+            max-width: 400px; 
+            margin: 15px auto; 
+            border-radius: 6px; 
+            font-size: 0.95rem; 
+            border: 1px solid #333;
+            font-weight: 500;
+        }
+        .highlight {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        button { 
+            padding: 12px 28px; 
+            font-size: 1rem; 
+            cursor: pointer; 
+            background: #4CAF50; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+            transition: background 0.2s, transform 0.1s;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+    </style>
+
+    <!-- Dependencies: jQuery, Chess.js (Rules Engine), and Chessboard.js (UI Grid) -->
     <script src="https://jquery.com"></script>
     <script src="https://cloudflare.com"></script>
     <script src="https://cloudflare.com"></script>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #1a1a1a; color: #fff; margin: 0; padding: 20px; }
-        h1 { color: #4CAF50; margin-bottom: 5px; }
-        #myBoard { width: 400px; max-width: 90vw; margin: 20px auto; border: 4px solid #333; border-radius: 4px; }
-        .status-box { background: #2a2a2a; padding: 10px; max-width: 400px; margin: 10px auto; border-radius: 5px; font-size: 14px; }
-        button { padding: 12px 24px; font-size: 16px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; font-weight: bold; margin-top: 10px; }
-        button:hover { background: #45a049; }
-    </style>
 </head>
 <body>
 
-    <h1>ViralChess.com</h1>
-    <p>Playing against: <strong>Stockfish Bot (Level 1)</strong></p>
-    
-    <div id="myBoard"></div>
-    
-    <div class="status-box" id="gameStatus">Your turn! Move a white piece to start.</div>
+    <div class="container">
+        <h1>ViralChess.com</h1>
+        <p>Opponent: <span class="highlight">Stockfish Engine (Level 1)</span></p>
+        
+        <!-- Interactive Chess Board Visual Display -->
+        <div id="myBoard"></div>
+        
+        <!-- Live game announcer box -->
+        <div class="status-box" id="gameStatus">Your turn! Slide a White piece to open the game.</div>
 
-    <button onclick="resetGame()">Restart Game</button>
+        <button onclick="resetGame()">Restart Match</button>
+    </div>
 
     <script>
         var board = null;
         var game = new Chess();
         var statusEl = $('#gameStatus');
 
-        // Locate and load the Stockfish Engine via Web Worker CDN
+        // Spin up the Stockfish Engine through a background Web Worker
         var stockfish = new Worker('https://cloudflare.com');
 
-        // Listen for Stockfish to reply with its calculated move
+        // Handle Stockfish's text replies when it finishes calculation
         stockfish.onmessage = function(event) {
             var line = event.data;
+            // Detect when Stockfish outputs its chosen move decision
             if (line.indexOf('bestmove') > -1) {
                 var match = line.match(/^bestmove\s([a-h][1-8])([a-h][1-8])([qrbn])?/);
                 if (match) {
@@ -57,33 +123,39 @@
         };
 
         function onDragStart (source, piece, position, orientation) {
+            // Block move inputs if game is already complete
             if (game.game_over()) return false;
-            // Prevent player from dragging black pieces
+            
+            // Only allow dragging of White pieces (Human Player)
             if (piece.search(/^b/) !== -1) return false;
         }
 
         function askStockfishToMove() {
-            statusEl.html('Bot is thinking...');
-            // Tell Stockfish the current game board setup
+            statusEl.html('🤖 <span style="color:#ffa726">Stockfish is thinking...</span>');
+            
+            // Sync current board positions with engine via Standard FEN layout
             stockfish.postMessage('position fen ' + game.fen());
-            // Tell Stockfish to think quickly (Depth 5 keeps it responsive on mobile phones)
-            stockfish.postMessage('go depth 5');
+            
+            // Trigger calculation (Depth 4 ensures fast execution directly inside phone browsers)
+            stockfish.postMessage('go depth 4');
         }
 
         function onDrop (source, target) {
+            // Attempt to submit player's dragged move into the rule validator
             var move = game.move({
                 from: source,
                 to: target,
                 promotion: 'q' 
             });
 
+            // Revert back piece placement if rule engine flags move as illegal
             if (move === null) return 'snapback';
 
             updateStatus();
 
-            // If the game isn't over, trigger Stockfish AI after a brief pause
+            // Fire engine turn calculation if game state remains active
             if (!game.game_over()) {
-                window.setTimeout(askStockfishToMove, 250);
+                window.setTimeout(askStockfishToMove, 300);
             }
         }
 
@@ -96,31 +168,33 @@
             var moveColor = (game.turn() === 'b') ? 'Black (Bot)' : 'White (You)';
 
             if (game.in_checkmate()) {
-                status = 'Game over, ' + moveColor + ' is in checkmate.';
+                status = '🏆 Match Over! ' + ((game.turn() === 'b') ? 'You win by Checkmate!' : 'Stockfish wins.');
             } else if (game.in_draw()) {
-                status = 'Game over, drawn position.';
+                status = '🤝 Match Over! The game ended in a draw.';
             } else {
-                status = moveColor + ' to move.';
+                status = (game.turn() === 'b') ? '🤖 Bot processing calculation...' : '🟢 Your turn! Make a move.';
                 if (game.in_check()) {
-                    status += ' (In Check!)';
+                    status += ' <span style="color:#ef5350; font-weight:bold;">(⚠️ Check!)</span>';
                 }
             }
             statusEl.html(status);
         }
 
+        // Configuration Object binding UI drag listeners with Board component
         var config = {
             draggable: true,
             position: 'start',
             onDragStart: onDragStart,
             onDrop: onDrop,
-            onSnapEnd: onSnapEnd
+            onSnapEnd: onSnapEnd,
+            pieceTheme: 'https://chessboardjs.com{piece}.png'
         };
         board = Chessboard('myBoard', config);
 
         function resetGame() {
             game.reset();
             board.start();
-            statusEl.html('Game restarted. Your turn!');
+            statusEl.html('Game restarted successfully. Your turn!');
         }
     </script>
 </body>
